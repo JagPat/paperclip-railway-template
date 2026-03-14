@@ -31,7 +31,7 @@ Set these in Railway template editor (service: `paperclip`):
 - `PAPERCLIP_HOME=/paperclip`
 - `PAPERCLIP_DEPLOYMENT_MODE=authenticated`
 - `PAPERCLIP_DEPLOYMENT_EXPOSURE=private`
-- `PAPERCLIP_PUBLIC_URL=https://${{paperclip.RAILWAY_PUBLIC_DOMAIN}}`
+- `PAPERCLIP_PUBLIC_URL=${{paperclip.RAILWAY_PUBLIC_DOMAIN}}`
 
 Optional:
 
@@ -41,6 +41,7 @@ Optional:
 ## Networking/storage
 
 - Add HTTP proxy on port `3100`
+- Healthcheck path should be `/api/health`
 - Attach a Railway volume at `/paperclip`
 
 ## Updating upstream version
