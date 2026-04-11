@@ -36,8 +36,8 @@ RUN apt-get update \
                                                                                              && rm -rf /var/lib/apt/lists/*
                                                                                              RUN corepack enable
 
-                                                                                             # Install Hermes Agent CLI for native hermes_local adapter support.
-                                                                                             RUN pip install --break-system-packages hermes-agent
+                                                                                             # Install Hermes Agent CLI from GitHub source (not on PyPI).
+                                                                                             RUN pip install --break-system-packages git+https://github.com/NousResearch/hermes-agent.git
 
                                                                                              WORKDIR /app
                                                                                              COPY --from=paperclip-build /paperclip /app
