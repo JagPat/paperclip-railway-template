@@ -53,6 +53,7 @@ RUN apt-get update \
                                                                                                                                          
                                                                                                                                          # Optional local adapters/tools parity with upstream Dockerfile.
                                                                                                                                          RUN npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/codex@latest opencode-ai
+                                                                                                                                         RUN npm install --global --omit=dev @google/gemini-cli@0.38.1
                                                                                                                                          RUN npm install --global --omit=dev tsx
                                                                                                                                          RUN mkdir -p /paperclip && chown node:node /paperclip
                                                                                                                                          
