@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# Vitan Paperclip overlay — pure upstream + extras (Gemini CLI, Hermes agent, tsx).
+# Vitan Paperclip overlay — pure upstream + extras (Gemini CLI, Hermes agent).
 # Philosophy: clone paperclipai/paperclip at ${PAPERCLIP_REF}, build it EXACTLY as upstream does,
 # then add only what Vitan's agents need on top. No wrapper, no bootstrap layer — those belong in
 # deployment config, not the image.
@@ -26,13 +26,13 @@ RUN usermod -u ${USER_UID} --non-unique node \
 FROM base AS paperclip-build
 ARG PAPERCLIP_REPO
 ARG PAPERCLIP_REF
-WORKDIR /src
+WORKDIR /app
 RUN git clone --depth 1 --branch "${PAPERCLIP_REF}" "${PAPERCLIP_REPO}" .
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @paperclipai/ui build
 RUN pnpm --filter @paperclipai/plugin-sdk build
 RUN pnpm --filter @paperclipai/server build
-RUN test -f server/dist/index.js
+RUN test -f server/dist/index.js || (echo "ERROR: server build output missing" && exit 1)
 
 # ---- Stage 3: production runtime ----
 FROM base AS production
@@ -40,23 +40,25 @@ ARG USER_UID=1000
 ARG USER_GID=1000
 WORKDIR /app
 
-# Copy the built Paperclip tree (owned by node)
-COPY --chown=node:node --from=paperclip-build /src /app
+# Copy the built Paperclip tree (owned by node). Upstream uses /app, so paths like
+# ./server/node_modules/tsx/... resolve correctly in the CMD below.
+COPY --chown=node:node --from=paperclip-build /app /app
 
 # Upstream bakes claude-code, codex, opencode — do the same so parity holds.
-# Vitan adds: Gemini CLI (BB/BS/HR/DPM/OC), tsx, Hermes Agent Python CLI (hermes_local adapter).
+# Vitan adds: Gemini CLI (BB/BS/HR/DPM/OC), Hermes Agent Python CLI (hermes_local adapter).
+# tsx is NOT installed globally — the CMD uses the workspace-local tsx loader shipped
+# with paperclip's `server` package (pnpm install brought it in as a transitive dep).
 RUN npm install --global --omit=dev \
       @anthropic-ai/claude-code@latest \
       @openai/codex@latest \
       opencode-ai \
       @google/gemini-cli@0.38.1 \
-      tsx \
   && pip install --break-system-packages git+https://github.com/NousResearch/hermes-agent.git \
   && mkdir -p /paperclip \
   && chown node:node /paperclip
 
 # Upstream's entrypoint (handles UID/GID remap + volume chown then execs as node)
-COPY --from=paperclip-build /src/scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY --from=paperclip-build /app/scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENV NODE_ENV=production \
@@ -76,4 +78,6 @@ ENV NODE_ENV=production \
 VOLUME ["/paperclip"]
 EXPOSE 3100
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["node", "/app/server/dist/index.js"]
+# Match upstream exactly: Node loads server/dist/index.js with the tsx ESM loader so
+# workspace packages whose `exports` point at ./src/*.ts can still resolve at runtime.
+CMD ["node", "--import", "./server/node_modules/tsx/dist/loader.mjs", "server/dist/index.js"]
