@@ -24,6 +24,8 @@ RUN usermod -u ${USER_UID} --non-unique node \
 
 # ---- Stage 2: clone + build upstream paperclip ----
 FROM base AS paperclip-build
+ARG PAPERCLIP_REPO
+ARG PAPERCLIP_REF
 WORKDIR /src
 RUN git clone --depth 1 --branch "${PAPERCLIP_REF}" "${PAPERCLIP_REPO}" .
 RUN pnpm install --frozen-lockfile
